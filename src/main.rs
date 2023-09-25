@@ -8,6 +8,6 @@ async fn main() -> Result<(), std::io::Error> {
     //     TcpListener::bind("127.0.0.1:8000")
     //         .expect("Failed to bind to 8000");
     // run(listerner)?.await
-    run().await
+    run()?.await
 }
 
