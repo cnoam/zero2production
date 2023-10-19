@@ -4,6 +4,7 @@ use actix_web::dev::Server;
 use std::net::TcpListener;
 use sqlx::PgPool;
 use crate::routes::{health_check::health_check, subscriptions::subscribe};
+use actix_web::middleware::Logger;
 
 pub  fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Error> {
     // Wrap the connection in a smart pointer
@@ -11,6 +12,8 @@ pub  fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::E
     // Capture `connection` from the surrounding environment ---> add "move"
     let server = HttpServer::new(move || {
         App::new()
+            // Middlewares are added using the `wrap` method on `App`
+            .wrap(Logger::default())
             .route("/health_check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
             // Register the connection as part of the application state
