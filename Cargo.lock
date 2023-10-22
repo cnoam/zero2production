@@ -2588,6 +2588,7 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "config",
+ "once_cell",
  "reqwest",
  "serde",
  "sqlx",
