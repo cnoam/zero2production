@@ -17,6 +17,7 @@ tracing-bunyan-formatter = "0.3"
 tracing-log = "0.1"
 #log = "0.4"
 tracing = { version = "0.1", features = ["log"] }
+secrecy = { version = "0.8", features = ["serde"] }
 
 # Using table-like toml syntax to avoid a super-long line!
 [dependencies.sqlx]
