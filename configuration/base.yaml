@@ -7,5 +7,5 @@ database:
   host: "localhost"
   port: 5432
   username: "postgres"
-  password: "password"
+  password: "password" # used locally only. When deploying to DigitalOcean, a strong password is used
   database_name: "newsletter"

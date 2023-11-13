@@ -45,6 +45,23 @@ services:
     routes:
       - path: /
 
+    envs:
+      - key: APP_DATABASE__USERNAME
+        scope: RUN_TIME
+        value: ${newsletter.USERNAME}
+      - key: APP_DATABASE__PASSWORD
+        scope: RUN_TIME
+        value: ${newsletter.PASSWORD}
+      - key: APP_DATABASE__HOST
+        scope: RUN_TIME
+        value: ${newsletter.HOSTNAME}
+      - key: APP_DATABASE__PORT
+        scope: RUN_TIME
+        value: ${newsletter.PORT}
+      - key: APP_DATABASE__DATABASE_NAME
+        scope: RUN_TIME
+        value: ${newsletter.DATABASE}
+
 databases:
   # PG = Postgres
   - engine: PG
@@ -53,4 +70,5 @@ databases:
     # Again, let's keep the bill lean
     num_nodes: 1
     size: db-s-dev-database
-    version: "12"  # as of 2023-11-01, DigitalOcean does not support v14 for development databases. I don't know why they decided it is a dev
+    #version: "14"
+    version: "12"  # as of 2023-11-01, DigitalOcean does not support v13, v14 and v15 for development databases. I don't know why they decided it is a dev

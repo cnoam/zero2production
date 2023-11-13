@@ -23,7 +23,7 @@ serde-aux = "4"
 
 # Using table-like toml syntax to avoid a super-long line!
 [dependencies.sqlx]
-version = "0.6"
+version = "0.7"
 default-features = false
 features = [
 "runtime-tokio-rustls",
@@ -32,7 +32,7 @@ features = [
 "uuid",
 "chrono",
 "migrate",
-"offline"
+#"offline", # sqlx 0.7 does not have 'offline'
 ]
 
 [lib]
