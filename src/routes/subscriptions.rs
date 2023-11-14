@@ -2,7 +2,8 @@ use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
 use uuid::Uuid;
 use sqlx::types::chrono::Utc;
-use crate::domain::{NewSubscriber, SubscriberName};
+
+use crate::domain::*;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -15,21 +16,28 @@ pub struct FormData {
 
 // check the tracing docs: https://docs.rs/tracing/latest/tracing/
 #[tracing::instrument(
-    name = "Adding a new subscriber",
-    skip(form, pool),
-    fields(
-        subscriber_email = % form.email,
-        subscriber_name = % form.name
-    )
+name = "Adding a new subscriber",
+skip(form, pool),
+fields(
+subscriber_email = % form.email,
+subscriber_name = % form.name
+)
 )]
 pub(crate) async fn subscribe(form: web::Form<FormData>,
                               pool: web::Data<PgPool>, ) -> HttpResponse {
-
-    let subscriber = NewSubscriber {
-        email: form.0.email,
-        name: SubscriberName::parse(form.0.name).expect("name validation failed"),
+    let name = match SubscriberName::parse(form.0.name){
+        Ok(name) => name,
+        Err(_) => return HttpResponse::BadRequest().finish(),
     };
-    match insert_subscriber(&pool, &subscriber).await{
+      let email = match SubscriberEmail::parse(form.0.email){
+        Ok(em) => em,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
+    let subscriber = NewSubscriber {
+        email,
+        name
+    };
+    match insert_subscriber(&pool, &subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish()
     }
@@ -37,8 +45,8 @@ pub(crate) async fn subscribe(form: web::Form<FormData>,
 
 
 #[tracing::instrument(
-    name = "Saving new subscriber details in the database",
-    skip(pool)
+name = "Saving new subscriber details in the database",
+skip(pool)
 )]
 pub async fn insert_subscriber(
     pool: &PgPool,
@@ -50,7 +58,7 @@ pub async fn insert_subscriber(
         VALUES ($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        new_subscriber.email,
+        new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
         Utc::now()
     )
@@ -60,5 +68,5 @@ pub async fn insert_subscriber(
             tracing::error!("Failed to execute query: {:?}", e);
             e
         })?;
-        Ok(())
+    Ok(())
 }

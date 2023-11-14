@@ -192,7 +192,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
         assert_eq!(
             400,
             response.status().as_u16(),
-            "The API did not return a 200 OK when the payload was {}.",
+            "The API did not return a 400 bad reQuest when the payload was {}.",
             description
         );
     }
