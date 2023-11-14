@@ -33,10 +33,7 @@ pub(crate) async fn subscribe(form: web::Form<FormData>,
         Ok(em) => em,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
-    let subscriber = NewSubscriber {
-        email,
-        name
-    };
+    let subscriber = NewSubscriber {email, name};
     match insert_subscriber(&pool, &subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish()
