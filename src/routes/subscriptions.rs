@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
-use uuid::Uuid;
 use sqlx::types::chrono::Utc;
+use uuid::Uuid;
 
 use crate::domain::*;
 
@@ -9,6 +9,16 @@ use crate::domain::*;
 pub struct FormData {
     email: String,
     name: String,
+}
+
+
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+        Ok(Self { email, name })
+    }
 }
 
 // you can test this with:
@@ -25,16 +35,12 @@ subscriber_name = % form.name
 )]
 pub(crate) async fn subscribe(form: web::Form<FormData>,
                               pool: web::Data<PgPool>, ) -> HttpResponse {
-    let name = match SubscriberName::parse(form.0.name){
-        Ok(name) => name,
+    let new_subscriber = match form.0.try_into() {
+        Ok(form) => form,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
-      let email = match SubscriberEmail::parse(form.0.email){
-        Ok(em) => em,
-        Err(_) => return HttpResponse::BadRequest().finish(),
-    };
-    let subscriber = NewSubscriber {email, name};
-    match insert_subscriber(&pool, &subscriber).await {
+
+    match insert_subscriber(&pool, &new_subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish()
     }
