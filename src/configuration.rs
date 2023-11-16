@@ -1,17 +1,35 @@
 //! src/configuration.rs
 //!
 
-use secrecy::Secret;
 use secrecy::ExposeSecret;
+use secrecy::Secret;
 use serde_aux::field_attributes::deserialize_number_from_string;
-use sqlx::postgres::{PgConnectOptions,PgSslMode};
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use crate::domain::SubscriberEmail;
 
 
 #[derive(serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
+    pub email_client: EmailClientSettings,
 }
+
+
+#[derive(serde::Deserialize)]
+pub struct EmailClientSettings {
+    pub base_url: String,
+    pub sender_email: String,
+    // New (secret) configuration value!
+    pub authorization_token: Secret<String>
+}
+
+impl EmailClientSettings {
+    pub fn sender(&self) -> Result<SubscriberEmail, String> {
+        SubscriberEmail::parse(self.sender_email.clone())
+    }
+}
+
 
 #[derive(serde::Deserialize)]
 pub struct DatabaseSettings {
@@ -37,6 +55,7 @@ pub enum Environment {
     Local,
     Production,
 }
+
 impl Environment {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -45,6 +64,7 @@ impl Environment {
         }
     }
 }
+
 impl TryFrom<String> for Environment {
     type Error = String;
 
@@ -62,7 +82,6 @@ impl TryFrom<String> for Environment {
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
-
     let base_path = std::env::current_dir()
         .expect("Failed to determine the current directory");
     let configuration_directory = base_path.join("configuration");
@@ -96,14 +115,14 @@ impl DatabaseSettings {
         options
     }
 
-     pub fn without_db(&self) -> PgConnectOptions {
-         let ssl_mode = if self.require_ssl {
-             PgSslMode::Require
-         } else {
-             // Try an encrypted connection, fallback to unencrypted if it fails
-             PgSslMode::Prefer
-         };
-         PgConnectOptions::new()
+    pub fn without_db(&self) -> PgConnectOptions {
+        let ssl_mode = if self.require_ssl {
+            PgSslMode::Require
+        } else {
+            // Try an encrypted connection, fallback to unencrypted if it fails
+            PgSslMode::Prefer
+        };
+        PgConnectOptions::new()
             .host(&self.host)
             .username(&self.username)
             .password(&self.password.expose_secret())
