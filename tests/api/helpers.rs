@@ -2,11 +2,13 @@
 
 use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
-use uuid::Uuid; // before refactoring it was use sqlx::types::Uuid;
+use uuid::Uuid;
 
 use zero2prod::configuration::{DatabaseSettings, get_configuration};
-use zero2prod::telemetry::{get_subscriber, init_subscriber};
 use zero2prod::startup::{Application, get_connection_pool};
+use zero2prod::telemetry::{get_subscriber, init_subscriber};
+
+// before refactoring it was use sqlx::types::Uuid;
 
 // Ensure that the `tracing` stack is only initialised once using `once_cell`
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -39,6 +41,18 @@ pub struct TestApp {
     pub db_pool: PgPool,
 }
 
+impl TestApp {
+    pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(&format!("{}/subscriptions", &self.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+}
+
 pub async fn spawn_app() -> TestApp {
     // The first time `initialize` is invoked the code in `TRACING` is executed.
     // All other invocations will instead skip execution.
@@ -61,7 +75,7 @@ pub async fn spawn_app() -> TestApp {
 
     TestApp {
         address,
-        db_pool: get_connection_pool(&configuration.database)
+        db_pool: get_connection_pool(&configuration.database),
     }
 }
 
