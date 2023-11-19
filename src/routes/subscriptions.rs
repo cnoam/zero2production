@@ -36,8 +36,7 @@ subscriber_name = % form.name
 )]
 pub(crate) async fn subscribe(form: web::Form<FormData>,
                               pool: web::Data<PgPool>,
-                              email_client: web::Data<EmailClient>,
-) -> HttpResponse {
+                              email_client: web::Data<EmailClient>) -> HttpResponse {
     let new_subscriber = match form.0.try_into() {
         Ok(form) => form,
         Err(_) => return HttpResponse::BadRequest().finish(),
@@ -46,12 +45,21 @@ pub(crate) async fn subscribe(form: web::Form<FormData>,
     if insert_subscriber(&pool, &new_subscriber).await.is_err() {
         return HttpResponse::InternalServerError().finish();
     }
+
+    let confirmation_link = "https://no-such-domain.com/subscriptions/confirm";
     if email_client
         .send_email(
             new_subscriber.email,
             "Welcome!",
-            "Welcome to our newsletter!",
-            "Welcome to our newsletter!",
+            &format!(
+                "Welcome to our newsletter!<br />\
+                Click <a href=\"{}\">here</a> to confirm your subscription.",
+                confirmation_link
+            ),
+            &format!(
+                "Welcome to our newsletter!\nVisit {} to confirm your subscription.",
+                confirmation_link
+            ),
         )
         .await
         .is_err()
@@ -66,7 +74,7 @@ pub(crate) async fn subscribe(form: web::Form<FormData>,
 name = "Saving new subscriber details in the database",
 skip(pool)
 )]
-pub async fn insert_subscriber(
+async fn insert_subscriber(
     pool: &PgPool,
     new_subscriber: &NewSubscriber,
 ) -> Result<(), sqlx::Error> {
