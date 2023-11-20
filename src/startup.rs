@@ -11,11 +11,22 @@ use crate::configuration::DatabaseSettings;
 use crate::configuration::Settings;
 use crate::email_client::EmailClient;
 use crate::routes::{health_check::health_check, subscriptions::subscribe};
+use crate::routes::subscriptions_confirm::confirm;
 
-pub fn run(listener: TcpListener, db_pool: PgPool, email_client: EmailClient) -> Result<Server, std::io::Error> {
+// We need to define a wrapper type in order to retrieve the URL
+// in the `subscribe` handler.
+// Retrieval from the context, in actix-web, is type-based: using
+// a raw `String` would expose us to conflicts.
+pub struct ApplicationBaseUrl(pub String);
+
+pub fn run(listener: TcpListener, db_pool: PgPool, email_client: EmailClient,base_url: String, )
+    -> Result<Server, std::io::Error> {
     // Wrap the connection in a smart pointer
+    // noam: I hate name reuse as a different type!
+    // it has great potential to confuse.
     let db_pool = web::Data::new(db_pool);
     let email_client = Data::new(email_client);
+    let base_url = Data::new(ApplicationBaseUrl(base_url));
     // Capture `connection` from the surrounding environment ---> add "move"
     let server = HttpServer::new(move || {
         App::new()
@@ -23,9 +34,16 @@ pub fn run(listener: TcpListener, db_pool: PgPool, email_client: EmailClient) ->
             .wrap(TracingLogger::default())
             .route("/health_check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
+            .route("/subscriptions/confirm", web::get().to(confirm))
             // Register the connection as part of the application state
+            // ---- WARNING ---
+            // The Rust type system is not working here!
+            // If you forget the line "let base_url = Data::new(ApplicationBaseUrl(base_url));"
+            // then the type of the data is String, and when the actix-web has to call the handler (/suscriptions)
+            // it does not find the handler and returns HTTP 500.
             .app_data(db_pool.clone()) // this will be used in src/routes/subscriptions handler
             .app_data(email_client.clone())
+             .app_data(base_url.clone())
     })
         .listen(listener)?
         .run();
@@ -57,7 +75,7 @@ pub async fn build(configuration: Settings) -> Result<Server, std::io::Error> {
     let address = format!("{}:{}",
                           configuration.application.host, configuration.application.port);
     let listener = TcpListener::bind(address)?;
-    run(listener, connection_pool, email_client)
+    run(listener, connection_pool, email_client, configuration.application.base_url)
 }
 
 // hack to get the server port number.
@@ -68,8 +86,6 @@ pub struct Application {
 }
 
 impl Application {
-    // We have converted the `build` function into a constructor for
-    // `Application`.
     pub async fn build(configuration: Settings) -> Result<Self, std::io::Error> {
         let connection_pool = get_connection_pool(&configuration.database);
         let sender_email = configuration
@@ -89,9 +105,10 @@ impl Application {
         );
         let listener = TcpListener::bind(address)?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, connection_pool, email_client)?;
+        let server = run(listener, connection_pool, email_client,
+                         configuration.application.base_url,
+        )?;
 
-        // We "save" the bound port in one of `Application`'s fields
         Ok(Self { port, server })
     }
 
