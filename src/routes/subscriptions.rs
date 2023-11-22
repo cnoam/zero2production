@@ -5,10 +5,10 @@ use sqlx::{Executor, Postgres, Transaction};
 use sqlx::PgPool;
 use sqlx::types::chrono::Utc;
 use uuid::Uuid;
-
 use crate::domain::*;
 use crate::email_client::EmailClient;
 use crate::startup::ApplicationBaseUrl;
+use actix_web::ResponseError;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -41,36 +41,38 @@ subscriber_name = % form.name
 pub(crate) async fn subscribe(form: web::Form<FormData>,
                               pool: web::Data<PgPool>,
                               email_client: web::Data<EmailClient>,
-                              base_url: web::Data<ApplicationBaseUrl>) -> HttpResponse {
+                              base_url: web::Data<ApplicationBaseUrl>) -> Result<HttpResponse, actix_web::Error>{
     let new_subscriber = match form.0.try_into() {
+        // noam: it is a bit strange that returning BadRequest error is wrapped by Ok() and not
+        // by Err(), but this is the correct behavior
         Ok(form) => form,
-        Err(_) => return HttpResponse::BadRequest().finish(),
+        Err(_) => return Ok(HttpResponse::BadRequest().finish()),
     };
     let mut transaction = match pool.begin().await {
         Ok(transaction) => transaction,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
     };
     let subscriber_id = match insert_subscriber(&mut transaction, &new_subscriber).await {
         Ok(subscriber_id) => subscriber_id,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
     };
     let subscription_token = generate_subscription_token();
-    if store_token(&mut transaction, subscriber_id, &subscription_token)
-        .await
-        .is_err()
-    {
-        return HttpResponse::InternalServerError().finish();
-    }
+
+    // The `?` operator transparently invokes the `Into` trait
+    // on our behalf - we don't need an explicit `map_err` anymore.
+    store_token(&mut transaction, subscriber_id, &subscription_token)
+        .await?;
+
     if transaction.commit().await.is_err() {
-        return HttpResponse::InternalServerError().finish();
+        return Ok(HttpResponse::InternalServerError().finish());
     }
     if send_confirmation_email(&email_client, new_subscriber, &base_url.0, &subscription_token)
         .await
         .is_err() {
         //TODO Log("");
-        return HttpResponse::InternalServerError().finish();
+        return Ok(HttpResponse::InternalServerError().finish());
     }
-    HttpResponse::Ok().finish()
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(
@@ -141,7 +143,7 @@ name = "Store subscription token in the database",
 skip(subscription_token, transaction)
 )]
 pub async fn store_token(transaction: &mut Transaction<'_, Postgres>, subscriber_id: Uuid, subscription_token: &str)
-                         -> Result<(), sqlx::Error> {
+                         -> Result<(),StoreTokenError> {
     let query = sqlx::query!(
         r#"INSERT INTO subscription_tokens (subscription_token, subscriber_id)
         VALUES ($1, $2)"#,
@@ -152,7 +154,21 @@ pub async fn store_token(transaction: &mut Transaction<'_, Postgres>, subscriber
         .await
         .map_err(|e| {
             tracing::error!("Failed to execute query: {:?}", e);
-            e
+            StoreTokenError(e)
         })?;
     Ok(())
+}
+
+// A new error type, wrapping a sqlx::Error
+// We derive `Debug`, easy and painless.
+#[derive(Debug)]
+pub struct StoreTokenError(sqlx::Error);
+
+impl ResponseError for StoreTokenError {}
+
+impl std::fmt::Display for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"A database error was encountered while \
+trying to store a subscription token.")
+    }
 }
