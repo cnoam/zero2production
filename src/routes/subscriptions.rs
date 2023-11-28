@@ -100,7 +100,7 @@ pub async fn send_confirmation_email(email_client: &EmailClient,
 Click <a href=\"{}\">here</a> to confirm your subscription.",
                             confirmation_link);
 
-    email_client.send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
+    email_client.send_email(&new_subscriber.email, "Welcome!", &html_body, &plain_body)
         .await
 }
 
@@ -183,7 +183,7 @@ impl std::fmt::Debug for StoreTokenError {
 }
 
 #[allow(dead_code)]
-fn error_chain_fmt(
+pub fn error_chain_fmt(
     e: &impl std::error::Error,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {

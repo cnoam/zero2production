@@ -10,7 +10,7 @@ use tracing_actix_web::TracingLogger;
 use crate::configuration::DatabaseSettings;
 use crate::configuration::Settings;
 use crate::email_client::EmailClient;
-use crate::routes::{health_check::health_check, subscriptions::subscribe};
+use crate::routes::{health_check::health_check, subscriptions::subscribe, publish_newsletter,};
 use crate::routes::subscriptions_confirm::confirm;
 
 // We need to define a wrapper type in order to retrieve the URL
@@ -35,6 +35,7 @@ pub fn run(listener: TcpListener, db_pool: PgPool, email_client: EmailClient,bas
             .route("/health_check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
+            .route("/newsletters", web::post().to(publish_newsletter))
             // Register the connection as part of the application state
             // ---- WARNING ---
             // The Rust type system is not working here!
