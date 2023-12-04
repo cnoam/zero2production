@@ -28,6 +28,7 @@ thiserror = "1"
 anyhow = "1"
 base64 = "0.21"
 sha3 = "0.9"
+digest = "0.10.7"
 
 # Using table-like toml syntax to avoid a super-long line!
 [dependencies.sqlx]
@@ -55,7 +56,7 @@ name  = "zero2prod"
 
 
 [[bin]]
-# this is probably not needed, but lets make it explicit
+# this is probably not needed, but let's make it explicit
 path = "src/main.rs"
 name = "zero2prod"
 
