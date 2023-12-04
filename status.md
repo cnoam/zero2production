@@ -26,3 +26,6 @@ Now the reference compiles ok.
 =========
 2023-11-14 : SUCCSESS!
 using the updated book and source code of chapter 5
+
+
+2023-12-4: in page 412, need to copy the code from the book, since I don't want to write it myself.

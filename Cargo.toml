@@ -1,6 +1,7 @@
 [package]
 name = "zero2prod"
 version = "0.1.0"
+authors = ["Noam C on behalf of LukeMathWalker"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -27,6 +28,7 @@ rand = { version = "0.8", features=["std_rng"] }
 thiserror = "1"
 anyhow = "1"
 base64 = "0.21"
+argon2 = { version = "0.4", features = ["std"] }
 sha3 = "0.9"
 digest = "0.10.7"
 
