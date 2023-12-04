@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 echo "Run this script from the root of the project: ./scripts/init_db.sh"
-set -x
+#set -x
 set -eo pipefail
 # Check if a custom user has been set, otherwise default to 'postgres'
 DB_USER=${POSTGRES_USER:=postgres}
