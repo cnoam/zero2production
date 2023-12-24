@@ -30,7 +30,12 @@ anyhow = "1"
 base64 = "0.21"
 argon2 = { version = "0.4", features = ["std"] }
 sha3 = "0.9"
+urlencoding = "2"
+htmlescape = "0.3"
+sha2 = "0.10"  # noam: why do you need to versions? page 452
 digest = "0.10.7"
+hmac = { version = "0.12", features = ["std"] }
+hex = "0.4"
 
 # Using table-like toml syntax to avoid a super-long line!
 [dependencies.sqlx]

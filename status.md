@@ -29,3 +29,6 @@ using the updated book and source code of chapter 5
 
 
 2023-12-4: in page 412, need to copy the code from the book, since I don't want to write it myself.
+
+2023-12-23: code from 10.6.3.1 seems to be working.
+Now need to check it runs, and continue in 10.6.3.2

@@ -1,17 +1,17 @@
-//! startup.rs
-use actix_web::{App, HttpServer, web};
+use crate::configuration::{DatabaseSettings, Settings};
+use crate::email_client::EmailClient;
+use crate::routes::{
+    confirm, health_check, home, login,  login_form, publish_newsletter, subscribe,
+};
 use actix_web::dev::Server;
-use std::net::TcpListener;
 use actix_web::web::Data;
-use sqlx::PgPool;
+use actix_web::{web, App, HttpServer};
+use secrecy::Secret;
 use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
+use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
-use crate::configuration::DatabaseSettings;
-use crate::configuration::Settings;
-use crate::email_client::EmailClient;
-use crate::routes::{health_check::health_check, subscriptions::subscribe, publish_newsletter,};
-use crate::routes::subscriptions_confirm::confirm;
 
 // We need to define a wrapper type in order to retrieve the URL
 // in the `subscribe` handler.
@@ -19,12 +19,14 @@ use crate::routes::subscriptions_confirm::confirm;
 // a raw `String` would expose us to conflicts.
 pub struct ApplicationBaseUrl(pub String);
 
-pub fn run(listener: TcpListener, db_pool: PgPool, email_client: EmailClient,base_url: String, )
-    -> Result<Server, std::io::Error> {
-    // Wrap the connection in a smart pointer
-    // noam: I hate name reuse as a different type!
-    // it has great potential to confuse.
-    let db_pool = web::Data::new(db_pool);
+fn run(
+    listener: TcpListener,
+    db_pool: PgPool,
+    email_client: EmailClient,
+    base_url: String,
+    hmac_secret: Secret<String>,
+) -> Result<Server, std::io::Error> {
+    let db_pool = Data::new(db_pool);
     let email_client = Data::new(email_client);
     let base_url = Data::new(ApplicationBaseUrl(base_url));
     // Capture `connection` from the surrounding environment ---> add "move"
@@ -36,6 +38,9 @@ pub fn run(listener: TcpListener, db_pool: PgPool, email_client: EmailClient,bas
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
             .route("/newsletters", web::post().to(publish_newsletter))
+            .route("/",web::get().to(home))
+            .route("/login", web::get().to(login_form))
+            .route("/login", web::post().to(login))
             // Register the connection as part of the application state
             // ---- WARNING ---
             // The Rust type system is not working here!
@@ -44,12 +49,16 @@ pub fn run(listener: TcpListener, db_pool: PgPool, email_client: EmailClient,bas
             // it does not find the handler and returns HTTP 500.
             .app_data(db_pool.clone()) // this will be used in src/routes/subscriptions handler
             .app_data(email_client.clone())
-             .app_data(base_url.clone())
+            .app_data(base_url.clone())
+            .app_data(Data::new(HmacSecret(hmac_secret.clone())))
     })
         .listen(listener)?
         .run();
     Ok(server)
-}
+} //run
+
+#[derive(Clone)]
+pub struct HmacSecret(pub Secret<String>);
 
 pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
     PgPoolOptions::new()
@@ -76,7 +85,7 @@ pub async fn build(configuration: Settings) -> Result<Server, std::io::Error> {
     let address = format!("{}:{}",
                           configuration.application.host, configuration.application.port);
     let listener = TcpListener::bind(address)?;
-    run(listener, connection_pool, email_client, configuration.application.base_url)
+    run(listener, connection_pool, email_client, configuration.application.base_url, configuration.application.hmac_secret,)
 }
 
 // hack to get the server port number.
@@ -88,7 +97,7 @@ pub struct Application {
 
 impl Application {
     pub async fn build(configuration: Settings) -> Result<Self, std::io::Error> {
-        let connection_pool = get_connection_pool(&configuration.database);
+        let connection_pool = get_connection_pool(&configuration.database); // in branch 10.a there is await()???
         let sender_email = configuration
             .email_client
             .sender()
@@ -106,8 +115,12 @@ impl Application {
         );
         let listener = TcpListener::bind(address)?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, connection_pool, email_client,
+        let server = run(
+            listener,
+            connection_pool,
+            email_client,
                          configuration.application.base_url,
+                         configuration.application.hmac_secret
         )?;
 
         Ok(Self { port, server })
