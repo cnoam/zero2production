@@ -49,6 +49,19 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+        where
+            Body: serde::Serialize,
+    {
+        reqwest::Client::new()
+            .post(&format!("{}/login", &self.address))
+            // This `reqwest` method makes sure that the body is URL-encoded
+            // and the `Content-Type` header is set accordingly.
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         reqwest::Client::new()
             .post(&format!("{}/subscriptions", &self.address))
@@ -126,7 +139,7 @@ pub async fn spawn_app() -> TestApp {
         port: application_port,
         db_pool: get_connection_pool(&configuration.database), //noam: in branch chapter10 part2, he has .await.expect() 
         email_server,
-        test_user: TestUser::generate()
+        test_user: TestUser::generate(),
     };
 
     test_app.test_user.store(&test_app.db_pool).await;
@@ -179,9 +192,9 @@ impl TestUser {
             Version::V0x13,
             Params::new(15000, 2, 1, None).unwrap(),
         )
-        .hash_password(self.password.as_bytes(), &salt)
-        .unwrap()
-        .to_string();
+            .hash_password(self.password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
         sqlx::query!(
             "INSERT INTO users (user_id, username, password_hash, salt)
             VALUES ($1, $2, $3, $4)",
@@ -190,8 +203,8 @@ impl TestUser {
             password_hash,
             "42" /*salt */
         )
-        .execute(pool)
-        .await
-        .expect("Failed to store test user.");
+            .execute(pool)
+            .await
+            .expect("Failed to store test user.");
     }
 }

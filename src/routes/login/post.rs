@@ -26,7 +26,7 @@ pub struct FormData {
 // We are now injecting `PgPool` to retrieve stored credentials from the database
 pub async fn login(
     form: web::Form<FormData>,
-                   pool: web::Data<PgPool>,
+    pool: web::Data<PgPool>,
     secret: web::Data<HmacSecret>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
@@ -43,22 +43,28 @@ pub async fn login(
                 .finish())
         }
         Err(e) => {
-	    // convert from Auth* to Login*
+	        // convert from Auth* to Login*
             let e = match e {
                 AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
-                AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
+                AuthError::UnexpectedError(_) => {
+                    LoginError::UnexpectedError(e.into())
+                },
             };
-            let query_string = format!("error={}", urlencoding::Encoded::new(e.to_string()));
+            let query_string = format!("error={}",
+                                       urlencoding::Encoded::new(e.to_string())
+            );
             let hmac_tag = {
                 let mut mac =
-                    Hmac::<sha2::Sha256>::new_from_slice(secret.0.expose_secret().as_bytes())
+                    Hmac::<sha2::Sha256>::new_from_slice(
+                        secret.0.expose_secret().as_bytes())
                         .unwrap();
                 mac.update(query_string.as_bytes());
                 mac.finalize().into_bytes()
             };
 
             let response = HttpResponse::SeeOther()
-                .insert_header((LOCATION, format!("/login?{query_string}&tag={hmac_tag:x}")))
+                .insert_header((LOCATION,
+                format!("/login?{}&tag={:x}", query_string,hmac_tag )))
                 .finish();
             Err(InternalError::from_response(e,response))
         }
