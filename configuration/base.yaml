@@ -2,7 +2,7 @@
 
 application:
   port: 8000
-  hmac_secret: "long-and-very-sec"
+  hmac_secret: "long-and-very-secure at least 64 bytes to be used by hmac generation"
 
 database:
   host: "localhost"
