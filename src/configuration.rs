@@ -14,6 +14,8 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
+    // The URI is marked as secret because it may embed a password.
+    pub redis_uri: Secret<String>,
 }
 
 
