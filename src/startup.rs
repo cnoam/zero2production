@@ -17,6 +17,7 @@ use secrecy::ExposeSecret;
 use actix_web::cookie::Key;
 use actix_session:: SessionMiddleware;
 use actix_session::storage::RedisSessionStore;
+use crate::routes::admin_dashboard;
 
 // We need to define a wrapper type in order to retrieve the URL
 // in the `subscribe` handler.
@@ -58,6 +59,7 @@ async fn run(
             .route("/",web::get().to(home))
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
+            .route("/admin/dashboard", web::get().to(admin_dashboard))
             // Register the connection as part of the application state
             // ---- WARNING ---
             // The Rust type system is not working here!
